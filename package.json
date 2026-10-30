@@ -32,6 +32,11 @@
     "kind": "world",
     "api": 6,
     "displayName": "桌宠日记",
+    "tags": [
+      "memory",
+      "companion",
+      "internal-state"
+    ],
     "icon": "assets/icon.svg",
     "webUiClient": "dist/webui.js",
     "webUiStyle": "dist/webui.css",
