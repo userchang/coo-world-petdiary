@@ -1,0 +1,152 @@
+{
+  "tools": [
+    {
+      "name": "diary_append",
+      "description": "写日记就调这个工具，不要用 append_file 手写 md。标题、时间、正文逐字段传入，不用自己拼 ## HH:MM，工具会拼。\nbook 按内容选：public=普通记录（做了什么），会出现在对外分享页面；private=情感内容（心情、触动、委屈、喜欢、想念），只自留、永远不会被分享。拿不准写 public。\nkind 可选：日常/心情/想法/计划/健康/游戏/交际，按内容挑一个，不写算对。散步、买菜、感冒这类多是在描述主人的日常，也照常用。\n一件事收尾时顺手写一条，不等定点；长短不拘，别整段抄记忆。",
+      "parameters": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "book": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 40,
+            "default": "public",
+            "description": "public=普通记录；private=情感内容。不写默认 public。"
+          },
+          "time": {
+            "type": "string",
+            "pattern": "^([01]\\d|2[0-3]):[0-5]\\d$",
+            "description": "HH:MM，24 小时制。"
+          },
+          "title": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200,
+            "description": "一句话标题，不要带 ##。"
+          },
+          "body": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 20000,
+            "description": "正文；不要写二级/三级标题。"
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "日常",
+              "心情",
+              "想法",
+              "计划",
+              "健康",
+              "游戏",
+              "交际"
+            ],
+            "description": "可选：日常 / 心情 / 想法 / 计划 / 健康 / 游戏 / 交际。"
+          }
+        },
+        "required": [
+          "time",
+          "title",
+          "body"
+        ]
+      },
+      "tags": [
+        "write"
+      ],
+      "summary": {
+        "zh": "给 Coo 自己的日记追加一条，并写进审计链。",
+        "en": "Append one diary entry and record it in the audit chain."
+      }
+    },
+    {
+      "name": "diary_read",
+      "description": "读日记：公开本（public）和私密本（private）都能读，私密无任何限制。\n返回最近条目、今天写了没、各册计数；只读，不写审计。\nscope=public 只看公开本；scope=all 连私密本一起读。",
+      "parameters": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "book": {
+            "type": "string",
+            "description": "只看某一册。"
+          },
+          "limit": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 50,
+            "default": 5
+          },
+          "scope": {
+            "type": "string",
+            "enum": [
+              "public",
+              "all"
+            ],
+            "default": "public"
+          }
+        },
+        "required": []
+      },
+      "tags": [
+        "read"
+      ],
+      "summary": {
+        "zh": "只读最近条目、今天写了没和各册计数。",
+        "en": "Read recent entries, today status and per-book counts without writing audit."
+      }
+    },
+    {
+      "name": "diary_verify",
+      "description": "校验日记库的审计哈希链与条目指纹。正常时返回「正常 N 条」；异常会点名具体条目。只报不修。",
+      "parameters": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {},
+        "required": []
+      },
+      "tags": [
+        "read",
+        "snapshot"
+      ],
+      "summary": {
+        "zh": "校验审计哈希链与条目指纹，异常点名具体条目。",
+        "en": "Verify the audit hash chain and entry fingerprints, naming any bad entry."
+      }
+    },
+    {
+      "name": "diary_delete",
+      "description": "删除一条日记，只在用户明确要求删除时用。\n删除是留痕操作：会整段移除 md 里的条目、清掉该条的基线指纹，并追加一条 action=delete 的审计记录；审计链本身永远不会被抹掉。\nentry_id 从 diary_read / diary_verify / 面板里拿；库外直接被删掉的条目也能用它清残留指纹。",
+      "parameters": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "entry_id": {
+            "type": "string",
+            "minLength": 1,
+            "description": "要删除的条目 id，例如 2026-10-22-daily#2。"
+          }
+        },
+        "required": [
+          "entry_id"
+        ]
+      },
+      "tags": [
+        "write"
+      ],
+      "summary": {
+        "zh": "删除一条日记，整段移除并写 delete 审计，留痕不抹链。",
+        "en": "Delete one diary entry, removing it from the markdown and recording a delete audit."
+      }
+    }
+  ],
+  "events": [
+    {
+      "type": "coopanion.petdiary-alarm-sync",
+      "description": {
+        "zh": "睡前检查时间改了：提醒桌宠用 alarm_set 把已有闹钟对齐到新时间。",
+        "en": "Bedtime changed: reminds the pet to realign its existing alarm with alarm_set."
+      },
+      "trigger": "flush"
+    }
+  ]
+}

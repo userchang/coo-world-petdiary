@@ -1,0 +1,4 @@
+node_modules/
+.p4-build/
+*.log
+.DS_Store

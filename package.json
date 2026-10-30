@@ -1,0 +1,60 @@
+{
+  "name": "coo-world-petdiary",
+  "version": "0.3.4",
+  "type": "module",
+  "description": "Coopanion 桌宠的日记世界插件：公开/私密双日记本、分类、浏览页、审计链与睡前检查闹钟对齐。",
+  "author": "userchang",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/userchang/coo-world-petdiary.git"
+  },
+  "homepage": "https://github.com/userchang/coo-world-petdiary#readme",
+  "bugs": {
+    "url": "https://github.com/userchang/coo-world-petdiary/issues"
+  },
+  "main": "./src/index.ts",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "keywords": [
+    "cortico-world",
+    "cortico",
+    "coopanion",
+    "diary",
+    "journal",
+    "private-diary"
+  ],
+  "engines": {
+    "node": ">=22"
+  },
+  "cortico": {
+    "kind": "world",
+    "api": 6,
+    "displayName": "桌宠日记",
+    "icon": "assets/icon.svg",
+    "webUiClient": "dist/webui.js",
+    "webUiStyle": "dist/webui.css",
+    "describe": "describe.json"
+  },
+  "files": [
+    "src",
+    "runtime",
+    "dist/webui.js",
+    "dist/webui.css",
+    "assets",
+    "describe.json",
+    "README.md",
+    "CHANGELOG.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "prebuild": "node scripts/sync-runtime.mjs",
+    "build": "node scripts/build-webui.mjs",
+    "test": "node --test test/*.test.mjs"
+  },
+  "devDependencies": {
+    "esbuild": "^0.28.2",
+    "typescript": "^5.7.2"
+  }
+}
