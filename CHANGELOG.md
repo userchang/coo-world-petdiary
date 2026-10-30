@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.3.5
+
+- 新增「习惯称呼」配置 `worlds.pet-diary.partnerAlias`：日记的分类关键词与标题里的说话人识别都按它来，代码里不再写死具体人名；留空按「主人」。
+- 称呼优先级：环境变量 `PETDIARY_PARTNER_ALIAS`（插件按配置传入）> `diary/alias.json` 的 `alias` > 「主人」。
+- `books.json` 出厂清空：册名以库里的 `index.diary` 为准；同步脚本在构建时也会把它重置为空表，避免个人册名进入公开包。
+- 新增别名回归测试 2 条（有内置 runtime 时生效）。
+
 ## 0.3.4
 
 - 调整初始提示词"睡前检查"部分：改为到点后用 `diary_read` 查今天两个本子还有什么要写的，空闲就补上；正忙就 `alarm_set` 顺延 15 分钟再查，最多两次。

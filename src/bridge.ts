@@ -122,6 +122,12 @@ function cleanStderr(value: unknown): string {
   return text.length > 600 ? `${text.slice(0, 600)}…` : text;
 }
 
+/** 习惯称呼透传给 Python 后端：分类关键词与说话人识别都按它来。 */
+function aliasEnv(cfg: PetDiarySection): Record<string, string> {
+  const alias = cfg.partnerAlias?.trim();
+  return alias ? { PETDIARY_PARTNER_ALIAS: alias } : {};
+}
+
 async function execOnce(
   python: string,
   script: string,
@@ -134,6 +140,7 @@ async function execOnce(
     ...process.env,
     PYTHONIOENCODING: 'utf-8',
     PYTHONUTF8: '1',
+    ...aliasEnv(cfg),
   };
   try {
     const result = await execFileAsync(python, [script, ...adminArgs], {
@@ -194,7 +201,7 @@ async function ensureDefaultLibrary(
   const script = join(scripts.dir, 'admin.py');
   const candidates = resolvePythonCandidates(applied.cfg, opts.pythonCandidates);
   const timeoutMs = opts.timeoutMs ?? DEFAULT_TIMEOUT_MS;
-  const env = { ...process.env, PYTHONIOENCODING: 'utf-8', PYTHONUTF8: '1' };
+  const env = { ...process.env, PYTHONIOENCODING: 'utf-8', PYTHONUTF8: '1', ...aliasEnv(applied.cfg) };
   let lastMissing: unknown = null;
 
   for (const python of candidates) {
@@ -405,7 +412,7 @@ export async function runBuildSite(
   const timeoutMs = opts.timeoutMs ?? DEFAULT_TIMEOUT_MS;
   const candidates = resolvePythonCandidates(effective, opts.pythonCandidates);
   const buildArgs = ['--root', effective.libraryRoot.trim(), '--scope', 'all', '--out', outDir];
-  const env = { ...process.env, PYTHONIOENCODING: 'utf-8', PYTHONUTF8: '1' };
+  const env = { ...process.env, PYTHONIOENCODING: 'utf-8', PYTHONUTF8: '1', ...aliasEnv(effective) };
 
   let lastMissing: unknown = null;
   for (const python of candidates) {

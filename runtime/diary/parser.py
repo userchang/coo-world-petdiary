@@ -30,6 +30,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import re
 import sys
 from pathlib import Path
@@ -161,6 +162,41 @@ def _load_config(name: str, fallback: dict[str, Any]) -> dict[str, Any]:
     return data
 
 
+# 主人的习惯称呼：插件按配置传环境变量，其次读 diary/alias.json 的 `alias`，
+# 都没有就用「主人」。分类关键词与标题里的说话人识别都用它，代码里不写死人名。
+DEFAULT_ALIAS = "主人"
+ALIAS_ENV = "PETDIARY_PARTNER_ALIAS"
+_alias_cache: str | None = None
+
+
+def _resolve_alias() -> str:
+    """解析习惯称呼；进程内缓存一次，避免每条日记都读盘。"""
+    global _alias_cache
+    if _alias_cache is None:
+        alias = os.environ.get(ALIAS_ENV, "").strip()
+        if not alias:
+            cfg = _load_config("alias.json", {})
+            value = cfg.get("alias") if isinstance(cfg, dict) else None
+            if isinstance(value, str):
+                alias = value.strip()
+        _alias_cache = alias or DEFAULT_ALIAS
+    return _alias_cache
+
+
+def _apply_alias(kinds: dict[str, Any]) -> dict[str, Any]:
+    """把习惯称呼并进「交际」关键词，让标题里出现它时也能归到交际。"""
+    alias = _resolve_alias()
+    if alias == DEFAULT_ALIAS:
+        return kinds
+    merged = {name: list(words) for name, words in kinds.items() if isinstance(words, list)}
+    if len(merged) != len(kinds):  # 配置里有非列表项，原样交回去。
+        return kinds
+    social = merged.setdefault("交际", [])
+    if alias not in social:
+        social.append(alias)
+    return merged
+
+
 def _book_from_path(path: Path, books: dict[str, Any]) -> tuple[str, str]:
     """从文件名 `<日期>-<slug>.md` 取册。
 
@@ -243,9 +279,10 @@ def _classify_kind(title: str, tags: list[str], kinds: dict[str, Any]) -> str:
 
 def _detect_speaker(title: str) -> str | None:
     """从标题里的称呼识别说话人；分类不再限制这一字段。"""
-    for word in ("主人", "我问他", "我说", "他让我"):
+    alias = _resolve_alias()
+    for word in (alias, "我问他", "我说", "他让我"):
         if word in title:
-            return "主人"
+            return alias
     for word in ("观众", "弹幕", "有人刷"):
         if word in title:
             return "观众"
@@ -291,7 +328,7 @@ def parse_text(
         books = _load_config("books.json", {})
     else:
         books = books_override
-    kinds = _load_config("kinds.json", DEFAULT_KINDS)
+    kinds = _apply_alias(_load_config("kinds.json", DEFAULT_KINDS))
 
     # 先标出哪些行是「真正的标题」：代码围栏里的 # 不算。
     heading_at: list[tuple[int, str]] = []

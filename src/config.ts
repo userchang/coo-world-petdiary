@@ -15,6 +15,8 @@ export interface PetDiarySection {
   scriptsDir: string;
   /** 睡前检查的兜底唤醒时刻，HH:MM；默认 23:59。 */
   bedtimeCheck: string;
+  /** 主人的习惯称呼，例如「爬爬」；留空按「主人」。用于分类关键词与说话人识别。 */
+  partnerAlias: string;
 }
 
 export const PET_DIARY_DEFAULTS: PetDiarySection = {
@@ -23,6 +25,7 @@ export const PET_DIARY_DEFAULTS: PetDiarySection = {
   pythonPath: '',
   scriptsDir: '',
   bedtimeCheck: '23:59',
+  partnerAlias: '',
 };
 
 const PREFIX = `worlds.${PET_DIARY_ID}`;
@@ -56,6 +59,12 @@ export function configGroups(): ConfigGroup[] {
           description: '留空自动使用插件内置 runtime/diary；没有内置时回退到库根同级的 diary/。',
           'x-path': { kind: 'directory' },
           'x-hot': false,
+        },
+        [`${PREFIX}.partnerAlias`]: {
+          type: 'string',
+          title: '习惯称呼',
+          description: '主人平时怎么被称呼，例如「爬爬」。日记的分类关键词与说话人识别会用它；留空按「主人」。',
+          'x-hot': true,
         },
         [`${PREFIX}.bedtimeCheck`]: {
           type: 'string',

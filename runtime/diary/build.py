@@ -56,7 +56,7 @@ def _json_for_script(value: Any) -> str:
 
 
 def _default_out_dir() -> Path:
-    """缺省落到包里的 `dist/`（相对插件根目录推导）。"""
+    """缺省落到包里的 `dist/`：agdiary/diary → DSHwork → coo-world-petdiary/dist。"""
     return Path(__file__).resolve().parent.parent.parent / "coo-world-petdiary" / "dist"
 
 

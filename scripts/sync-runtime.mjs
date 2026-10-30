@@ -8,7 +8,7 @@
  *
  * 默认从同级的 ../../agdiary/diary 取；也可用 PETDIARY_BACKEND 指定源目录。
  */
-import { cp, rm } from 'node:fs/promises';
+import { cp, rm, writeFile } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
 import { basename, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -32,4 +32,8 @@ await cp(source, target, {
     return true;
   },
 });
-console.log(`runtime/diary 同步完成：${source} -> ${target}`);
+// 隐私兜底：books.json 在开发目录里是「我自己那几本」的册名，出厂必须是空表；
+// 用户的册名由库里的 index.diary 决定。习惯称呼不走配置表，由插件按 config 传环境变量。
+await writeFile(new URL('../runtime/diary/books.json', import.meta.url), '{}\n', 'utf8');
+
+console.log(`runtime/diary 同步完成：${source} -> ${target}（books.json 已清空）`);

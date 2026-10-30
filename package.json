@@ -1,6 +1,6 @@
 {
   "name": "coo-world-petdiary",
-  "version": "0.3.4",
+  "version": "0.3.5",
   "type": "module",
   "description": "Coopanion 桌宠的日记世界插件：公开/私密双日记本、分类、浏览页、审计链与睡前检查闹钟对齐。",
   "author": "userchang",

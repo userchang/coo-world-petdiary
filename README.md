@@ -50,6 +50,7 @@ Windows 上**装好即用**：包内自带 Windows embeddable Python 和 `runtim
 | `pythonPath` | 留空 Windows 自动使用插件内置 `runtime/python/python.exe`；没有内置时依次试 PATH 里的 `python` / `python3`。 |
 | `scriptsDir` | 留空自动使用插件内置 `runtime/diary/`；没有内置时回退到库根同级的 `diary/`。 |
 | `bedtimeCheck` | 睡前检查时刻，24 小时制 `HH:MM`，默认 `23:59`；热更新。插件检测到变化后推内部事件让 Coo 用 `alarm_set` 对齐闹钟，不直接写 `alarms.json`。Coo 关着时下次启动再检查。 |
+| `partnerAlias` | 主人的习惯称呼，例如 `爬爬`。分类关键词与标题里的说话人识别都按它来；留空按 `主人`。后端也可以用 `diary/alias.json` 的 `{"alias": "…"}` 兜底，环境变量 `PETDIARY_PARTNER_ALIAS` 优先级最高。 |
 
 默认配置示例（全部留空即可）：
 
@@ -61,7 +62,8 @@ Windows 上**装好即用**：包内自带 Windows embeddable Python 和 `runtim
       "libraryRoot": "",
       "pythonPath": "",
       "scriptsDir": "",
-      "bedtimeCheck": "23:59"
+      "bedtimeCheck": "23:59",
+      "partnerAlias": ""
     }
   }
 }
