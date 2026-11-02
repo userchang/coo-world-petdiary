@@ -19,6 +19,10 @@ const source = process.env.PETDIARY_BACKEND
 const target = fileURLToPath(new URL('../runtime/diary', import.meta.url));
 
 if (!existsSync(source)) {
+  if (existsSync(target)) {
+    console.log(`未找到外部源码目录 ${source}，但已有 ${target}，跳过同步。`);
+    process.exit(0);
+  }
   throw new Error(`找不到 diary 后端源码：${source}（用 PETDIARY_BACKEND 指定）`);
 }
 
