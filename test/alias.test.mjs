@@ -16,7 +16,7 @@ const hasRuntime = existsSync(runtimePython);
 function runPy(code, env) {
   return execFileSync(runtimePython, ['-c', code], {
     cwd: diaryDir,
-    env: { ...process.env, ...env },
+    env: { ...process.env, PYTHONIOENCODING: 'utf-8', PYTHONUTF8: '1', ...env },
     encoding: 'utf8',
   });
 }
@@ -37,7 +37,7 @@ test('习惯称呼来自环境变量', { skip: !hasRuntime && '需要内置 runt
 });
 
 test('没有配置时退回「主人」', { skip: !hasRuntime && '需要内置 runtime' }, () => {
-  const env = { ...process.env };
+  const env = { ...process.env, PYTHONIOENCODING: 'utf-8', PYTHONUTF8: '1' };
   delete env.PETDIARY_PARTNER_ALIAS;
   const out = execFileSync(
     runtimePython,

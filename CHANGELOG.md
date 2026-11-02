@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.3.6
+
+- 数据根优先采用框架提供的 `ctx.dataDir`（`src/world.ts`）：仅在未提供 `dataDir` 或旧配置下 `ctx.dataDir` 落入 `<botDir>/data` 时回退目录推导，适配不同部署目录结构（#1）。
+- 睡前检查闹钟读取做好缺失与格式变更退路（`src/alarmSync.ts`、`src/world.ts`）：`<botDir>/alarms.json` 不存在时静默降级（不推事件、不报警告），兼容数组根节点与 ISO 时间戳，并对读取告警做去重避免每 60 秒刷屏（#1）。
+
 ## 0.3.5
 
 - 新增「习惯称呼」配置 `worlds.pet-diary.partnerAlias`：日记的分类关键词与标题里的说话人识别都按它来，代码里不再写死具体人名；留空按「主人」。

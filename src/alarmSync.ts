@@ -161,20 +161,21 @@ interface AlarmFileRead {
   error: string | null;
 }
 
-/** 只读 alarms.json；不存在/坏 JSON/形状不对都不抛。 */
+/** 只读 alarms.json；不存在/坏 JSON/形状不对都不抛，做好跨 World 存档格式变化的退路。 */
 export function readAlarmFile(path: string): AlarmFileRead {
-  if (!existsSync(path)) return { alarms: [], missing: true, error: null };
+  if (!path || !existsSync(path)) return { alarms: [], missing: true, error: null };
   try {
     const value = JSON.parse(readFileSync(path, 'utf8')) as unknown;
-    if (!value || typeof value !== 'object' || Array.isArray(value)) {
-      return { alarms: [], missing: false, error: 'alarms.json 根节点不是对象' };
-    }
-    const alarms = (value as { alarms?: unknown }).alarms;
-    if (!Array.isArray(alarms)) {
-      return { alarms: [], missing: false, error: 'alarms.json 的 alarms 不是数组' };
+    const rawList = Array.isArray(value)
+      ? value
+      : value && typeof value === 'object'
+        ? (value as { alarms?: unknown }).alarms
+        : undefined;
+    if (!Array.isArray(rawList)) {
+      return { alarms: [], missing: false, error: 'alarms.json 未包含 alarms 数组（格式可能已变更）' };
     }
     return {
-      alarms: alarms.filter(
+      alarms: rawList.filter(
         (item): item is AlarmRecord => Boolean(item) && typeof item === 'object' && !Array.isArray(item),
       ),
       missing: false,
@@ -191,7 +192,7 @@ function matchingAlarm(alarms: readonly AlarmRecord[]): AlarmRecord | null {
     (alarm) => typeof alarm.note === 'string' && alarm.note.includes(BEDTIME_MARKER),
   );
   if (!matches.length) return null;
-  return matches.slice().sort((a, b) => Number(a.at) - Number(b.at))[0] ?? null;
+  return matches.slice().sort((a, b) => (alarmAt(a) ?? 0) - (alarmAt(b) ?? 0))[0] ?? null;
 }
 
 function alarmId(alarm: AlarmRecord): string {
@@ -199,8 +200,14 @@ function alarmId(alarm: AlarmRecord): string {
 }
 
 function alarmAt(alarm: AlarmRecord): number | null {
-  const value = Number(alarm.at);
-  return Number.isFinite(value) ? value : null;
+  if (typeof alarm.at === 'number' && Number.isFinite(alarm.at)) return alarm.at;
+  if (typeof alarm.at === 'string' && alarm.at.trim()) {
+    const numeric = Number(alarm.at);
+    if (Number.isFinite(numeric)) return numeric;
+    const parsed = Date.parse(alarm.at);
+    if (Number.isFinite(parsed)) return parsed;
+  }
+  return null;
 }
 
 function mismatchText(bedtime: string, desiredLabel: string): string {
@@ -217,10 +224,11 @@ function missingText(bedtime: string, desiredLabel: string): string {
 /**
  * 检查一次，只返回计划，不动任何文件。
  *
+ * - alarms.json 不存在（Notice World 未启用或存档位置变化）：静默退路，不改、不推、不报警告。
  * - 有匹配闹钟且本地时刻 == bedtime：不改、不推。
  * - 有匹配闹钟但时刻不同：推一条对齐事件。
- * - 文件里没有匹配闹钟（或 alarms.json 还不存在）：推一条「设一个」事件。
- * - 文件坏 / 配置坏：不推，返回 log。
+ * - alarms.json 存在但没有匹配闹钟：推一条「设一个」事件。
+ * - 文件坏 / 格式变 / 配置坏：不推，返回 log。
  */
 export function planBedtimeAlarm(options: AlarmSyncOptions): AlarmSyncPlan {
   const bedtime = normalizeBedtime(options.bedtime);
@@ -245,6 +253,15 @@ export function planBedtimeAlarm(options: AlarmSyncOptions): AlarmSyncPlan {
   }
 
   const read = readAlarmFile(options.alarmsPath);
+  if (read.missing) {
+    return {
+      ...base,
+      bedtime,
+      action: 'none',
+      reason: 'missing',
+      key: `file-missing:${bedtime}`,
+    };
+  }
   if (read.error) {
     return {
       ...base,
@@ -267,9 +284,8 @@ export function planBedtimeAlarm(options: AlarmSyncOptions): AlarmSyncPlan {
   }
   const desiredLabel = labelInZone(options.timezone, desiredAt);
   const alarm = matchingAlarm(read.alarms);
-  const missing = read.missing || alarm === null;
 
-  if (missing) {
+  if (alarm === null) {
     return {
       ...base,
       bedtime,
@@ -279,9 +295,7 @@ export function planBedtimeAlarm(options: AlarmSyncOptions): AlarmSyncPlan {
       reason: 'missing',
       key: `missing:${bedtime}`,
       text: missingText(bedtime, desiredLabel),
-      log: read.missing
-        ? 'alarms.json 不存在，按还没设睡前检查闹钟处理'
-        : '没有 note 含「睡前检查」的闹钟',
+      log: '没有 note 含「睡前检查」的闹钟',
     };
   }
 

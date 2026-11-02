@@ -77,6 +77,7 @@ export class PetDiaryWorld implements World {
   private lastAlarmBedtime: string | null = null;
   private lastAlarmReadAt = 0;
   private lastAlarmNoticeKey: string | null = null;
+  private lastAlarmWarnLog: string | null = null;
 
   constructor(private readonly opts: PetDiaryWorldOptions) {}
 
@@ -99,23 +100,27 @@ export class PetDiaryWorld implements World {
   }
 
   /**
-   * Coopanion 数据根（<root>/data）。实测两个宿主字段都不能直接信：
-   * - ctx.dataDir = abs(config.paths.data)，而 paths.data 是相对 botDir 的 'data'，
-   *   实际得到 <botDir>/data，再拼 home/companion/... 会翻倍（0.3.2 现场日志实证）；
-   * - ctx.packageDir = bot 部署目录，不是插件安装目录。
-   * 因此按目录形态识别：插件安装目录向上三级（node_modules/extensions 形态）优先，
-   * 其次 botDir=<data>/home/companion 向上两级；都对不上才退回 ctx.dataDir。
+   * Coopanion 数据根（<root>/data）。
+   * 优先直接使用框架提供的 `ctx.dataDir`；仅当未提供 `dataDir`，或旧配置下
+   * `ctx.dataDir` 落入 `<botDir>/data`（会导致再拼 `home/companion/...` 翻倍）时，
+   * 才退回按 `botDir` 或插件安装目录兜底。
    */
   private dataRoot(): string | undefined {
+    const bot = this.opts.botDir ? resolve(this.opts.botDir) : undefined;
+    if (this.opts.dataDir) {
+      const data = resolve(this.opts.dataDir);
+      if (!bot || data !== join(bot, 'data')) {
+        return data;
+      }
+    }
+    if (bot && basename(bot) === 'companion' && basename(dirname(bot)) === 'home') {
+      return dirname(dirname(bot));
+    }
     const pkg = resolve(this.opts.moduleDir ?? modulePackageDir());
     if (basename(dirname(pkg)) === 'node_modules' && basename(dirname(dirname(pkg))) === 'extensions') {
       return dirname(dirname(dirname(pkg)));
     }
-    const bot = this.opts.botDir ? resolve(this.opts.botDir) : undefined;
-    if (bot && basename(bot) === 'companion' && basename(dirname(bot)) === 'home') {
-      return dirname(dirname(bot));
-    }
-    return this.opts.dataDir;
+    return this.opts.dataDir ? resolve(this.opts.dataDir) : undefined;
   }
 
   private effectiveCfg(): PetDiarySection {
@@ -149,13 +154,15 @@ export class PetDiaryWorld implements World {
   /**
    * 配置是活对象（WorldContext.cfg），每秒看一次 bedtimeCheck。
    * 配置没变且离上次读盘不到 60 秒，就不碰 alarms.json；变化时立即读并推事件。
+   * 若 Notice World 的 alarms.json 不存在或格式变更，静默降级且对告警做去重，不刷屏。
    */
   private syncBedtimeAlarm(force = false): void {
     const host = this.host;
-    if (!host) return;
+    if (!host || !this.opts.botDir) return;
     if (!this.effectiveCfg().libraryRoot.trim()) {
       this.lastAlarmBedtime = null;
       this.lastAlarmNoticeKey = null;
+      this.lastAlarmWarnLog = null;
       return;
     }
 
@@ -165,7 +172,10 @@ export class PetDiaryWorld implements World {
     const bedtimeChanged = bedtime !== this.lastAlarmBedtime;
     if (!force && !bedtimeChanged && now - this.lastAlarmReadAt < ALARM_SYNC_TTL_MS) return;
     // 配置换了就允许为新时间再推一次；同一个时间反复出现则由 lastAlarmNoticeKey 去重。
-    if (bedtimeChanged) this.lastAlarmNoticeKey = null;
+    if (bedtimeChanged) {
+      this.lastAlarmNoticeKey = null;
+      this.lastAlarmWarnLog = null;
+    }
 
     this.lastAlarmBedtime = bedtime;
     this.lastAlarmReadAt = now;
@@ -182,7 +192,14 @@ export class PetDiaryWorld implements World {
       return;
     }
 
-    if (plan.log) host.log.warn(`[pet-diary] ${plan.log}`);
+    if (plan.log) {
+      if (plan.log !== this.lastAlarmWarnLog) {
+        this.lastAlarmWarnLog = plan.log;
+        host.log.warn(`[pet-diary] ${plan.log}`);
+      }
+    } else {
+      this.lastAlarmWarnLog = null;
+    }
     if (plan.action === 'notify') {
       if (plan.key === this.lastAlarmNoticeKey) return;
       this.lastAlarmNoticeKey = plan.key;

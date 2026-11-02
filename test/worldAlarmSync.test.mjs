@@ -63,3 +63,47 @@ test('World pushes once on start, again on live config change, and dedups', asyn
     await rm(dir, { recursive: true, force: true });
   }
 });
+
+test('World stays silent when Notice World alarms.json is absent and dedups format warnings', async () => {
+  const dir = await mkdtemp(join(tmpdir(), 'petdiary-world-noalarm-'));
+  try {
+    const cfg = {
+      enabled: true,
+      libraryRoot: dir,
+      pythonPath: '',
+      scriptsDir: '',
+      bedtimeCheck: '23:10',
+    };
+    const pushed = [];
+    const warnings = [];
+    const host = {
+      pushDeferred: (event, opts) => pushed.push({ event, opts }),
+      log: { warn: (msg) => warnings.push(msg) },
+    };
+
+    const world = new worldModule.PetDiaryWorld({
+      cfg,
+      packageDir: dir,
+      botDir: dir,
+      timezone: TZ,
+    });
+    await world.start(host);
+    assert.equal(pushed.length, 0);
+    assert.equal(warnings.length, 0);
+
+    // 写入格式不兼容的 alarms.json，验证不会崩溃且同一条告警不重复刷屏
+    await writeFile(join(dir, 'alarms.json'), JSON.stringify({ version: 2, items: [] }), 'utf8');
+    cfg.bedtimeCheck = '23:15';
+    await world.envPromptVars();
+    assert.equal(pushed.length, 0);
+    assert.equal(warnings.length, 1);
+
+    // 强制再触发一次，相同错误不重复 warn
+    world.syncBedtimeAlarm(true);
+    assert.equal(warnings.length, 1);
+
+    await world.stop();
+  } finally {
+    await rm(dir, { recursive: true, force: true });
+  }
+});

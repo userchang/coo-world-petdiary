@@ -191,6 +191,27 @@ test('world defaults survive real host ctx: botDir doubling + packageDir being d
     // 部署目录没有 runtime → 回退模块自身位置，仓库里 runtime/diary 真实存在
     assert.equal(applied.bundledScripts, true);
     assert.ok(applied.scriptsDir.endsWith(join('runtime', 'diary')), applied.scriptsDir);
+
+    // 显式传入标准 ctx.dataDir 时，即使目录结构完全自定义也直接采用 ctx.dataDir
+    const customData = await mkdtemp(join(tmpdir(), 'petdiary-custom-data-'));
+    try {
+      const worldWithDataDir = new worldModule2.PetDiaryWorld({
+        cfg: { enabled: true, libraryRoot: '', pythonPath: '', scriptsDir: '', bedtimeCheck: '23:59' },
+        packageDir: '/opt/custom/deploy',
+        botDir: '/srv/bots/my-pet',
+        dataDir: customData,
+        moduleDir: '/opt/custom/plugins/petdiary',
+        timezone: 'Asia/Shanghai',
+      });
+      const resolvedCustom = worldWithDataDir.defaults();
+      assert.equal(resolvedCustom.dataDir, customData);
+      assert.equal(
+        resolvedCustom.libraryRoot,
+        join(customData, 'home', 'companion', 'workspace', 'petdiary'),
+      );
+    } finally {
+      await rm(customData, { recursive: true, force: true });
+    }
   } finally {
     await rm(data, { recursive: true, force: true });
   }

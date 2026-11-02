@@ -91,7 +91,7 @@ test('broken JSON is skipped with a log, not a throw', async () => {
   });
 });
 
-test('missing alarms.json asks Coo to set the first alarm', async () => {
+test('missing alarms.json degrades silently without pushing or warning', async () => {
   await withAlarms(undefined, async (file) => {
     const plan = alarmSync.planBedtimeAlarm({
       alarmsPath: file,
@@ -99,11 +99,25 @@ test('missing alarms.json asks Coo to set the first alarm', async () => {
       timezone: TZ,
       now: at(22, 0),
     });
-    assert.equal(plan.action, 'notify');
+    assert.equal(plan.action, 'none');
     assert.equal(plan.reason, 'missing');
-    assert.match(plan.log, /不存在/);
-    assert.match(plan.text, /还没有「睡前检查」闹钟/);
-    assert.match(plan.text, /daily: true/);
+    assert.equal(plan.log, '');
+    assert.equal(plan.text, '');
+  });
+});
+
+test('root array and ISO timestamp in alarms.json are also tolerated', async () => {
+  const iso = new Date(at(23, 10)).toISOString();
+  await withAlarms(JSON.stringify([{ id: 'a9', at: iso, note: '睡前检查', daily: true }]), async (file) => {
+    const plan = alarmSync.planBedtimeAlarm({
+      alarmsPath: file,
+      bedtime: '23:10',
+      timezone: TZ,
+      now: at(22, 0),
+    });
+    assert.equal(plan.action, 'none');
+    assert.equal(plan.reason, 'aligned');
+    assert.equal(plan.currentClock, '23:10');
   });
 });
 
